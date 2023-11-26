@@ -1,0 +1,177 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_PAIRS 100 // Nombre maximum de paires
+#define MAX_LENGTH 20 // Longueur maximale d'une paire
+
+// Structure représentant une paire de nombres
+typedef struct {
+    int premier;
+    int deuxieme;
+} Paire;
+
+// Structure représentant une valeur avec son nombre d'occurrences et son groupe
+typedef struct {
+    int valeur;
+    int occurrences;
+    int groupe;
+} ValeurAvecOccurrences;
+
+// Structure de graphe pour les liaisons entre les valeurs
+typedef struct {
+    int valeur;
+    int *voisins;
+    int nbVoisins;
+} Graphe;
+
+// Fonction de comparaison pour le tri décroissant des valeurs par nombre d'occurrences
+int comparer(const void *a, const void *b) {
+    return ((ValeurAvecOccurrences *)b)->occurrences - ((ValeurAvecOccurrences *)a)->occurrences;
+}
+
+int main() {
+    FILE *fichier;
+    Paire paires[MAX_PAIRS]; // Tableau de paires
+    int index = 0;
+    char ligne[MAX_LENGTH];
+
+    fichier = fopen("../paire.txt", "r");
+    if (fichier == NULL) {
+        printf("Impossible d'ouvrir le fichier.\n");
+        return 1;
+    }
+
+    // Lecture des paires du fichier et stockage dans le tableau
+    while (fgets(ligne, sizeof(ligne), fichier) != NULL) {
+        // Extraction des nombres de la ligne
+        char *token;
+        token = strtok(ligne, "{}, ");
+        while (token != NULL) {
+            paires[index].premier = atoi(token);
+            token = strtok(NULL, "{}, ");
+            paires[index].deuxieme = atoi(token);
+            token = strtok(NULL, "{}, ");
+
+            index++;
+            if (index >= MAX_PAIRS) {
+                printf("Trop de paires, augmentez MAX_PAIRS.\n");
+                break;
+            }
+        }
+    }
+
+    fclose(fichier);
+
+    // Compter les occurrences des valeurs dans les paires
+    ValeurAvecOccurrences valeursAvecOccurrences[MAX_PAIRS * 2]; // Pour stocker toutes les valeurs
+    int valeursIndex = 0;
+
+    for (int i = 0; i < index; i++) {
+        // Vérifier la première valeur de la paire
+        int premiereValeur = paires[i].premier;
+        int dejaCompte = 0;
+
+        for (int j = 0; j < valeursIndex; j++) {
+            if (valeursAvecOccurrences[j].valeur == premiereValeur) {
+                valeursAvecOccurrences[j].occurrences++;
+                dejaCompte = 1;
+                break;
+            }
+        }
+
+        if (!dejaCompte) {
+            valeursAvecOccurrences[valeursIndex].valeur = premiereValeur;
+            valeursAvecOccurrences[valeursIndex].occurrences = 1;
+            valeursIndex++;
+        }
+
+        // Vérifier la deuxième valeur de la paire
+        int deuxiemeValeur = paires[i].deuxieme;
+        dejaCompte = 0;
+
+        for (int j = 0; j < valeursIndex; j++) {
+            if (valeursAvecOccurrences[j].valeur == deuxiemeValeur) {
+                valeursAvecOccurrences[j].occurrences++;
+                dejaCompte = 1;
+                break;
+            }
+        }
+
+        if (!dejaCompte) {
+            valeursAvecOccurrences[valeursIndex].valeur = deuxiemeValeur;
+            valeursAvecOccurrences[valeursIndex].occurrences = 1;
+            valeursIndex++;
+        }
+    }
+
+    // Trier les valeurs par nombre d'occurrences (tri décroissant)
+    qsort(valeursAvecOccurrences, valeursIndex, sizeof(ValeurAvecOccurrences), comparer);
+
+    // Appliquer l'algorithme de Welsh-Powell pour attribuer les groupes
+    int couleur[MAX_PAIRS * 2];
+    for (int i = 0; i < valeursIndex; i++) {
+        couleur[i] = 0; // Initialiser toutes les couleurs à 0 (non attribué)
+    }
+
+    // Trier les sommets par ordre décroissant de degrés
+    int ordre[MAX_PAIRS * 2];
+    for (int i = 0; i < valeursIndex; i++) {
+        ordre[i] = i;
+    }
+
+    for (int i = 0; i < valeursIndex - 1; i++) {
+        for (int j = 0; j < valeursIndex - i - 1; j++) {
+            if (valeursAvecOccurrences[ordre[j]].occurrences < valeursAvecOccurrences[ordre[j + 1]].occurrences) {
+                int temp = ordre[j];
+                ordre[j] = ordre[j + 1];
+                ordre[j + 1] = temp;
+            }
+        }
+    }
+
+    // Appliquer les couleurs
+    int groupeActuel = 1;
+    for (int i = 0; i < valeursIndex; i++) {
+        int sommet = ordre[i];
+        if (couleur[sommet] == 0) {
+            couleur[sommet] = groupeActuel;
+
+            for (int j = 0; j < valeursIndex; j++) {
+                if (i != j && couleur[j] == 0 && sommet != j) {
+                    int voisin = j;
+                    int estVoisin = 0;
+                    for (int k = 0; k < valeursIndex; k++) {
+                        if (k != i && k != j && couleur[k] == 0) {
+                            if ((paires[k].premier == paires[sommet].premier || paires[k].premier == paires[sommet].deuxieme ||
+                                 paires[k].deuxieme == paires[sommet].premier || paires[k].deuxieme == paires[sommet].deuxieme) &&
+                                (paires[k].premier == paires[voisin].premier || paires[k].premier == paires[voisin].deuxieme ||
+                                 paires[k].deuxieme == paires[voisin].premier || paires[k].deuxieme == paires[voisin].deuxieme)) {
+                                estVoisin = 1;
+                                break;
+                            }
+                        }
+                    }
+                    if (!estVoisin) {
+                        couleur[j] = groupeActuel;
+                    }
+                }
+            }
+
+            groupeActuel++;
+        }
+    }
+
+    // Attribuer les groupes aux valeurs avec occurrences
+    for (int i = 0; i < valeursIndex; i++) {
+        valeursAvecOccurrences[i].groupe = couleur[i];
+    }
+
+    // Afficher les groupes attribués aux valeurs
+    printf("Groupes attribues aux valeurs en fonction de leurs occurrences :\n");
+    for (int i = 0; i < valeursIndex; i++) {
+        printf("Valeur : %d, Occurrences : %d, Groupe : %d\n", valeursAvecOccurrences[i].valeur, valeursAvecOccurrences[i].occurrences, valeursAvecOccurrences[i].groupe);
+    }
+
+    return 0;
+}
