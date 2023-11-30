@@ -1,41 +1,10 @@
 #include <stdio.h>
-#include "Graphe.h"
+#include "header.h"
+
 
 // Ajouter l'arête entre les sommets s1 et s2 du graphe
-pSommet* CreerArete(pSommet* sommet,int s1,int s2)
+pSommet* CreerArc(pSommet* sommet,int s1,int s2)
 {
-    if(sommet[s1]->arc==NULL)
-    {
-        pArc Newarc=(pArc)malloc(sizeof(struct Arc));
-        Newarc->sommet=s2;
-        Newarc->arc_suivant=NULL;
-        sommet[s1]->arc=Newarc;
-        return sommet;
-    }
-
-    else
-    {
-        pArc temp=sommet[s1]->arc;
-        while( !(temp->arc_suivant==NULL))
-        {
-            temp=temp->arc_suivant;
-        }
-        pArc Newarc=(pArc)malloc(sizeof(struct Arc));
-        Newarc->sommet=s2;
-        Newarc->arc_suivant=NULL;
-
-        if(temp->sommet>s2)
-        {
-            Newarc->arc_suivant=temp->arc_suivant;
-            Newarc->sommet=temp->sommet;
-            temp->sommet=s2;
-            temp->arc_suivant=Newarc;
-            return sommet;
-        }
-
-        temp->arc_suivant=Newarc;
-        return sommet;
-    }
 }
 
 // créer le graphe
@@ -85,17 +54,17 @@ Graphe * lire_graphe(char * nomFichier)
     for (int i=0; i<taille; ++i)
     {
         fscanf(ifs,"%d%d",&s1,&s2);
-        graphe->pSommet=CreerArete(graphe->pSommet, s1, s2);
+        graphe->pSommet=CreerArc(graphe->pSommet, s1, s2);
 
         if(!orientation)
-            graphe->pSommet=CreerArete(graphe->pSommet, s2, s1);
+            graphe->pSommet=CreerArc(graphe->pSommet, s2, s1);
     }
 
     return graphe;
 }
 
 /*affichage du graphe avec les successeurs de chaque sommet */
-void graphe_afficher(Graphe* graphe)
+void Graphe_afficher(Graphe* graphe)
 {
     printf("graphe\n");
 
@@ -119,8 +88,53 @@ void graphe_afficher(Graphe* graphe)
 
 
 
-
 int main() {
-    printf("Hello, World!\n");
-    return 0;
+    FILE *fichier;
+    char caractere;
+
+    // Ouvrir le fichier en mode lecture
+    fichier = fopen("C:\\Users\\Gabriel\\Documents\\ING2-2023-2024\\theorie des graphes\\test1\\dependance.txt", "r");
+
+    // Vérifier si l'ouverture du fichier a réussi
+    if (fichier == NULL) {
+        perror("Erreur lors de l'ouverture du fichier");
+        return 1;
+    }
+
+
+    while (fgets(caractere, sizeof(caractere), fichier) != NULL) {
+        char nom;
+        int duree;
+        int predecesseurs;
+        int dependant;
+
+        sscanf(caractere, "%c %d", &predecesseurs, &dependant);
+        // Fermer le fichier
+        fclose(fichier);
+
+        FILE *fichier2;
+
+        fichier2 = fopen("C:\\Users\\Gabriel\\Documents\\ING2-2023-2024\\theorie des graphes\\test1\\poids.txt", "b");
+
+        // Vérifier si l'ouverture du fichier a réussi
+        if (fichier == NULL) {
+            perror("Erreur lors de l'ouverture du fichier2");
+            return 1;
+        }
+
+
+        while (fgets(caractere, sizeof(caractere), fichier2) != NULL) {
+            char nom;
+            int duree;
+            int arc;
+            float poids;
+
+            scanf(caractere, "%c %f", &predecesseurs, &dependant);
+            // Fermer le fichier
+            fclose(fichier2);
+            return 0;
+        }
+
+
+    }
 }
