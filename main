@@ -128,7 +128,7 @@ Graphe * lire_graphe(char * nomFichier)
     // créer les arêtes du graphe
     for (int i=0; i<taille; ++i)
     {
-        printf("test ");
+
         fscanf(ifs,"%d%d",&s1,&s2);
         graphe->pSommet=CreerArete(graphe->pSommet, s1, s2);
 
@@ -161,6 +161,19 @@ void lire_durees(Graphe* graphe, char* nomFichierDurees) {
     }
 
     fclose(ifs); // Fermer le fichier après la lecture
+}
+
+int lire_t_cycle(char* nomFichierDurees) {
+    FILE* ifs = fopen(nomFichierDurees, "r");
+    if (!ifs) {
+        printf("Erreur de lecture fichier de durées\n");
+        exit(-1);
+    }
+
+    int t_cycle;
+    fscanf(ifs, "%d", &t_cycle);
+    fclose(ifs); // Fermer le fichier après la lecture
+    return t_cycle;
 }
 
 /*affichage du graphe avec les successeurs de chaque sommet */
@@ -452,7 +465,7 @@ float pert_calculer_et_afficher(Graphe* graphe, int maxTachesSimultanees) {
     }
 
     // Afficher les indices PERT
-    printf("Indices PERT :\n");
+    printf("taches simultanees :\n");
     for (int i = 0; i < graphe->ordre; i++) {
         printf("Tache %d : Au plus tot = %.2f, Au plus tard = %.2f\n", i, indices[i].auPlusTot, indices[i].auPlusTard);
         maxTempsCycle = fmax(maxTempsCycle, indices[i].auPlusTard);
@@ -464,27 +477,10 @@ float pert_calculer_et_afficher(Graphe* graphe, int maxTachesSimultanees) {
     return maxTempsCycle;
 }
 
-
-
-
-int main() {
-
-
-    Graphe *g;
-    char nom_fichier[50];
-    char nom_fichier_durees[50];
-
-    FILE *fichier;
+int color(FILE * fichier){
     Paire paires[MAX_PAIRS]; // Tableau de paires
     int index = 0;
     char ligne[MAX_LENGTH];
-
-    fichier = fopen("../exclusion.txt", "r");
-    if (fichier == NULL) {
-        printf("Impossible d'ouvrir le fichier.\n");
-        return 1;
-    }
-
     while (fgets(ligne, sizeof(ligne), fichier) != NULL) {
         // Extraction des nombres de la ligne
         char *token;
@@ -608,26 +604,56 @@ int main() {
     for (int i = 0; i < valeursIndex; i++) {
         valeursAvecOccurrences[i].groupe = couleur[i];
     }
-
+    int max = 0;
     // Afficher les groupes attribués aux valeurs
     printf("Groupes attribues aux valeurs en fonction de leurs occurrences :\n");
     for (int i = 0; i < valeursIndex; i++) {
+        if(valeursAvecOccurrences[i].groupe > max){
+            max = valeursAvecOccurrences[i].groupe;
+        }
         printf("Valeur : %d, Occurrences : %d, Groupe : %d\n", valeursAvecOccurrences[i].valeur, valeursAvecOccurrences[i].occurrences, valeursAvecOccurrences[i].groupe);
     }
+    return max;
+}
 
-    printf("Entrer le nom du fichier du labyrinthe:");//C:\Users\bmart\CLionProjects\projet_th_graphe\precedences.txt
+
+int main() {
+
+
+    Graphe *g;
+    char nom_fichier[50];
+    char nom_fichier_durees[50];
+    char nom_fichier_t_cycle[50];
+    int max_stations_color;
+    FILE *fichier;
+    Paire paires[MAX_PAIRS]; // Tableau de paires
+    int index = 0;
+    char ligne[MAX_LENGTH];
+
+    fichier = fopen("../exclusion.txt", "r");
+    if (fichier == NULL) {
+        printf("Impossible d'ouvrir le fichier.\n");
+        return 1;
+    }
+
+    max_stations_color = color(fichier);
+
+    printf("Entrer le nom du fichier de precedances :");//C:\Users\bmart\CLionProjects\projet_th_graphe\precedences.txt
     gets(nom_fichier);
 
     g = lire_graphe(nom_fichier);
 
-    printf("Entrer le nom du fichier des durees : ");//C:\Users\bmart\CLionProjects\projet_th_graphe\operations.txt
+    printf("Entrer le nom du fichier des durees :");//C:\Users\bmart\CLionProjects\projet_th_graphe\operations.txt
     gets(nom_fichier_durees);
 
     lire_durees(g, nom_fichier_durees);
 
-    int seuilTempsCycle; // Déclarer la variable pour le seuil du temps de cycle
-    printf("Entrer le seuil du temps de cycle : ");
-    scanf("%d", &seuilTempsCycle);
+    int seuilTempsCycle;
+    printf("Entrer le nom du fichier du temps de cycle :");//C:\Users\bmart\CLionProjects\projet_th_graphe\temps_cycle.txt
+    gets(nom_fichier_t_cycle);
+    // Déclarer la variable pour le seuil du temps de cycle
+    seuilTempsCycle = lire_t_cycle(nom_fichier_t_cycle);
+
 
 
     graphe_afficher(g);
@@ -641,22 +667,33 @@ int main() {
             maxSuccesseurs = successeurs;
         }
     }
-
+    int max_Sim;
     for (int maxTachesSimultanees = 0; maxTachesSimultanees <= maxSuccesseurs; maxTachesSimultanees++) {
         // Votre code existant ici
 
         // Calculer et afficher les indices PERT
         int TachesSimultanees = (maxSuccesseurs-maxTachesSimultanees);
-        printf("%d",TachesSimultanees);
+        max_Sim =  (maxSuccesseurs-maxTachesSimultanees);
+        printf("%d ",TachesSimultanees);
         float tempsCycle = pert_calculer_et_afficher(g, maxTachesSimultanees);
-        printf("%f", tempsCycle);
+        printf("temps de cycle : ");
+        printf("%f \n", tempsCycle);
         if (tempsCycle > seuilTempsCycle) {
-            printf("Le temps de cycle maximal a dépassé le seuil. Arrêt de la boucle.\n");
+            printf("\nLe temps de cycle maximal a depasse le seuil. Arret de la boucle.\n");
             break;
         }
     }
+    printf("\n");
+    printf("\n");
 
-
+    printf("/*******************************************************************************************************************/\n");
+    printf("nombre de station avec les exclusions : ");
+    printf("%d", max_stations_color);
+    printf("\n");
+    printf("nombre de station avec les exclusions : ");
+    printf("%d", max_Sim-1);
+    printf("\n");
+    printf("/********************************************************************************************************************/\n");
 
     return 0;
 }
