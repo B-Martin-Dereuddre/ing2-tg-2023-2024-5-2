@@ -207,57 +207,16 @@ void graphe_afficher(Graphe* graphe)
     }
 }
 
-
-
-
-void ParcourLongueur(Graphe * g,int s, int taille){
-
-    if(g->pSommet[s]->couleur == 'B'){
-        printf("%d,",g->pSommet[s]->valeur);
-        g->pSommet[s]->couleur='N';
-        pArc Temparc=g->pSommet[s]->arc;
-        while(Temparc!=NULL){
-            if (g->pSommet[Temparc->sommet]->couleur == 'B') {
-                ParcourLongueur(g, Temparc->sommet,taille);
-            }
-            Temparc=Temparc->arc_suivant;
-        }
-    }
-
-
-}
-
-void sommet_cible(Graphe * g,int s, int taille,  int cible){
-    if(g->pSommet[s]->couleur == 'B'){
-        printf("%d,",g->pSommet[s]->valeur);
-        if (g->pSommet[s]->valeur == cible){
-            return;
-        }
-        g->pSommet[s]->couleur='N';
-        pArc Temparc=g->pSommet[s]->arc;
-        while(Temparc!=NULL){
-            if (g->pSommet[Temparc->sommet]->couleur == 'B') {
-                sommet_cible(g, Temparc->sommet,taille,cible);
-                if (g->pSommet[Temparc->sommet]->couleur == 'N') {
-                    return;
-                }
-            }
-            Temparc=Temparc->arc_suivant;
-        }
-
-    }
-}
-
 int* trouver_source(Graphe* graphe, int* nbSources) {
-    // Tableau pour marquer les sommets ayant des prédécesseurs entrants
+    // tableau pour marquer les sommets ayant des prédécesseurs entrants
     int* aDesPredecesseurs = (int*)malloc(graphe->ordre * sizeof(int));
 
-    // Initialiser le tableau à false (0)
+    // initialise le tableau a 0
     for (int i = 0; i < graphe->ordre; i++) {
         aDesPredecesseurs[i] = 0;
     }
 
-    // Parcourir tous les sommets et marquer ceux ayant des prédécesseurs
+    // parcourt tous les sommets et marquer ceux ayant des prédécesseurs
     for (int i = 0; i < graphe->ordre; i++) {
         pArc arc = graphe->pSommet[i]->arc;
         while (arc != NULL) {
@@ -266,7 +225,7 @@ int* trouver_source(Graphe* graphe, int* nbSources) {
         }
     }
 
-    // Compter les sources du graphe (sommets sans prédécesseurs entrants et avec au moins un successeur sortant)
+    // compte les sources du graphe (sommets sans prédécesseurs entrants et avec au moins un successeur sortant)
     *nbSources = 0;
     for (int i = 0; i < graphe->ordre; i++) {
         if (!aDesPredecesseurs[i] && graphe->pSommet[i]->arc != NULL) {
@@ -274,10 +233,10 @@ int* trouver_source(Graphe* graphe, int* nbSources) {
         }
     }
 
-    // Allouer de la mémoire pour stocker les indices des sources
+    // allout de la mémoire pour stocker les indices des sources
     int* sources = (int*)malloc(*nbSources * sizeof(int));
 
-    // Remplir le tableau avec les indices des sources du graphe
+    // remplir le tableau avec les indices des sources du graphe
     int indexSource = 0;
     for (int i = 0; i < graphe->ordre; i++) {
         if (!aDesPredecesseurs[i] && graphe->pSommet[i]->arc != NULL) {
@@ -285,20 +244,20 @@ int* trouver_source(Graphe* graphe, int* nbSources) {
         }
     }
 
-    // Libérer la mémoire allouée
+    // libérer la mémoire
     free(aDesPredecesseurs);
 
     return sources;
 }
 
-int nombre_max_successeurs(Graphe* graphe, int sommet) {
+int nombre_successeurs(Graphe* graphe, int sommet) {   // permet de calculer le nombre de succeseur d'un sommet
     pArc arc = graphe->pSommet[sommet]->arc;
-    int count = 0;
+    int nb = 0;
     while (arc != NULL) {
-        count++;
+        nb+=1;
         arc = arc->arc_suivant;
     }
-    return count;
+    return nb;
 }
 
 typedef struct {
@@ -306,34 +265,34 @@ typedef struct {
     float auPlusTard;
 } PertInfo;
 
-// Structure pour représenter une tâche
+// structure pour représenter une tâche
 typedef struct {
     int sommet;
-    float debut; // Date de début de la tâche
+    float debut; // date de début de la tâche
 } Tache;
 
-// Fonction de comparaison pour la file de priorité (heap)
+// fonction de comparaison pour la file de priorité
 int compareTaches(const void* a, const void* b) {
     return ((Tache*)a)->debut - ((Tache*)b)->debut;
 }
 
-// Fonction pour parcourir et mettre à jour les dates des tâches
+// fonction pour parcourir et mettre à jour les dates des tâches
 void parcourir_et_mettre_a_jour_dates(Graphe* graphe, PertInfo* indices, int sommet, float* derniereTache, int maxTachesSimultanees) {
     pArc arc = graphe->pSommet[sommet]->arc;
 
-    // File de priorité pour les tâches simultanées
+    // file de priorité pour les tâches simultanées
     Tache* tachesSimultanees = (Tache*)malloc(maxTachesSimultanees * sizeof(Tache));
     int nbTachesSimultanees = 0;
 
-    // Variables pour stocker les tâches pouvant s'exécuter simultanément
-    float debutPossible = indices[sommet].auPlusTard; // Début possible de la tâche actuelle
-    float finPossible = *derniereTache;               // Fin possible de la tâche précédente
+    // variables pour stocker les tâches pouvant s'exécuter simultanément
+    float debutPossible = indices[sommet].auPlusTard; // début possible de la tâche actuelle
+    float finPossible = *derniereTache;               // fin possible de la tâche précédente
 
     while (arc != NULL) {
         int successeur = arc->sommet;
         float dureeArc = graphe->pSommet[successeur]->duree;
 
-        // Vérifier si le successeur a des prédécesseurs autres que la tâche actuelle
+        // vérifie si le successeur a des prédécesseurs autres que la tâche actuelle
         int aDesPredecesseursAutres = 0;
         pArc predArc = graphe->pSommet[successeur]->arc;
         while (predArc != NULL) {
@@ -344,24 +303,24 @@ void parcourir_et_mettre_a_jour_dates(Graphe* graphe, PertInfo* indices, int som
             predArc = predArc->arc_suivant;
         }
 
-        // Si le successeur n'a pas d'autres prédécesseurs, il peut commencer simultanément
+        // si le successeur n'a pas d'autres prédécesseurs, il peut commencer en meme temps
         if (!aDesPredecesseursAutres) {
-            // Mettez à jour la date au plus tôt pour la tâche successeur
+            // mettre à jour la date au plus tôt pour la tâche successeur
             indices[successeur].auPlusTot = fmax(indices[successeur].auPlusTot, finPossible);
 
-            // Mettez à jour la date au plus tard pour la tâche successeur
+            // mettre à jour la date au plus tard pour la tâche successeur
             indices[successeur].auPlusTard = fmax(indices[successeur].auPlusTard, finPossible + dureeArc);
 
-            // Mettez à jour la fin possible pour les tâches suivantes
+            // mettre à jour la fin possible pour les tâches suivantes
             finPossible = fmax(finPossible, indices[successeur].auPlusTard);
 
-            // Ajouter la tâche simultanée à la file de priorité
+            // ajout la tâche simultanée à la file de priorité
             if (nbTachesSimultanees < maxTachesSimultanees) {
                 tachesSimultanees[nbTachesSimultanees].sommet = successeur;
                 tachesSimultanees[nbTachesSimultanees].debut = indices[successeur].auPlusTot;
                 nbTachesSimultanees++;
             } else {
-                // Si la file de priorité est pleine, retirez la tâche avec la date de début la plus élevée
+                // si la file de priorité est pleine, on retire la tâche avec la date de début la plus élevée
                 qsort(tachesSimultanees, maxTachesSimultanees, sizeof(Tache), compareTaches);
                 if (indices[successeur].auPlusTot < tachesSimultanees[maxTachesSimultanees - 1].debut) {
                     tachesSimultanees[maxTachesSimultanees - 1].sommet = successeur;
@@ -369,28 +328,28 @@ void parcourir_et_mettre_a_jour_dates(Graphe* graphe, PertInfo* indices, int som
                 }
             }
 
-            // Calculer la durée totale de la tâche successeur en fonction des tâches simultanées
+            // calcule de la durée totale de la tâche successeur en fonction qui se font en meme temps(tâches simultanées)
             float dureeTotale = dureeArc;
             for (int i = 0; i < nbTachesSimultanees; i++) {
                 float chevauchement = fmax(0.0, fmin(finPossible, tachesSimultanees[i].debut + graphe->pSommet[tachesSimultanees[i].sommet]->duree) - indices[successeur].auPlusTot);
                 dureeTotale = fmax(dureeTotale, dureeTotale + chevauchement);
             }
-            // Mettez à jour la date au plus tard en fonction de la durée totale
+            // mettre à jour la date au plus tard en fonction de la durée totale
             indices[successeur].auPlusTard = indices[successeur].auPlusTot + dureeTotale;
 
-            // Appel récursif pour parcourir les successeurs
+            // appel récursif pour parcourir les successeurs
             parcourir_et_mettre_a_jour_dates(graphe, indices, successeur, &debutPossible, maxTachesSimultanees);
         } else {
-            // Si le successeur a d'autres prédécesseurs, il doit attendre que la tâche actuelle soit terminée
+            // si le successeur a d'autres prédécesseurs, attendre que la tâche actuelle soit terminée
             indices[successeur].auPlusTot = fmax(indices[successeur].auPlusTot, indices[sommet].auPlusTard);
 
-            // Mettez à jour la date au plus tard pour la tâche successeur
+            // metre à jour la date au plus tard pour la tâche successeur
             indices[successeur].auPlusTard = fmax(indices[successeur].auPlusTard, indices[sommet].auPlusTard + dureeArc);
 
-            // Mettez à jour la fin possible pour les tâches suivantes
+            // mettre à jour la fin possible pour les tâches suivantes
             finPossible = fmax(finPossible, indices[successeur].auPlusTard);
 
-            // Appel récursif pour parcourir les successeurs
+            // appel récursif pour parcourir les successeurs
             parcourir_et_mettre_a_jour_dates(graphe, indices, successeur, &debutPossible, maxTachesSimultanees);
         }
         if (nbTachesSimultanees < maxTachesSimultanees) {
@@ -398,7 +357,7 @@ void parcourir_et_mettre_a_jour_dates(Graphe* graphe, PertInfo* indices, int som
             tachesSimultanees[nbTachesSimultanees].debut = indices[successeur].auPlusTot;
             nbTachesSimultanees++;
         } else {
-            // Si la file de priorité est pleine, retirez la tâche avec la date de début la plus élevée
+            // si la file de priorité est pleine, retirez la tâche avec la date de début la plus élevée
             qsort(tachesSimultanees, maxTachesSimultanees, sizeof(Tache), compareTaches);
             if (indices[successeur].auPlusTot < tachesSimultanees[maxTachesSimultanees - 1].debut) {
                 tachesSimultanees[maxTachesSimultanees - 1].sommet = successeur;
@@ -406,7 +365,7 @@ void parcourir_et_mettre_a_jour_dates(Graphe* graphe, PertInfo* indices, int som
             }
         }
 
-        // Calculer la durée totale de la tâche successeur en fonction des tâches simultanées
+        // calculer la durée totale de la tâche successeur en fonction des tâches simultanées
         float dureeTotale = dureeArc;
 
 
@@ -414,26 +373,24 @@ void parcourir_et_mettre_a_jour_dates(Graphe* graphe, PertInfo* indices, int som
             float debutTacheSimult = tachesSimultanees[i].debut;
             float dureeTacheSimult = graphe->pSommet[tachesSimultanees[i].sommet]->duree;
 
-            // Calculer le chevauchement en prenant en compte la tâche simultanée actuelle
+            // calculer le chevauchement en prenant en compte la tâche simultanée actuelle
             float chevauchement = fmax(0.0, fmin(finPossible, debutTacheSimult + dureeTacheSimult) - indices[successeur].auPlusTot);
 
-            // Ajouter la durée du chevauchement à la durée totale
+            // ajouter la durée du chevauchement à la durée totale
             dureeTotale += chevauchement;
         }
 
-        // Mettre à jour la date au plus tard en fonction de la durée totale
+        // mettre à jour la date au plus tard en fonction de la durée totale
         indices[successeur].auPlusTard = indices[successeur].auPlusTot + dureeTotale;
 
-        // Appel récursif pour parcourir les successeurs
+        // appel récursif pour parcourir les successeurs
 
         parcourir_et_mettre_a_jour_dates(graphe, indices, successeur, &debutPossible, maxTachesSimultanees);
 
         arc = arc->arc_suivant;
     }
 
-    // ...
-
-    // Libérer la mémoire allouée pour la file de priorité
+    // libérer la mémoire
     free(tachesSimultanees);
 
 
@@ -444,34 +401,34 @@ float pert_calculer_et_afficher(Graphe* graphe, int maxTachesSimultanees) {
     int nbSources;
     int* sources = trouver_source(graphe, &nbSources);
 
-    // Allouer de l'espace pour les indices PERT
+    // allouer de l'espace pour les informations des sommets
     PertInfo* indices = (PertInfo*)malloc(graphe->ordre * sizeof(PertInfo));
 
-    // Initialiser les indices PERT
+    // initialiser les informations des sommets
     for (int i = 0; i < graphe->ordre; i++) {
         indices[i].auPlusTot = 0.0;
-        indices[i].auPlusTard = 0.0; // Initialiser au maximum de float
+        indices[i].auPlusTard = 0.0; // initialiser le temps au plus tot et au plus tard
     }
     float maxTempsCycle = 0.0;
-    // Calculer les indices PERT à partir des sources
+    // calculer les informations des somemst à partir des sources
     for (int i = 0; i < nbSources; i++) {
         int source = sources[i];
         indices[source].auPlusTot = 0.0;
-        indices[source].auPlusTard = graphe->pSommet[source]->duree; // Initialiser au temps de la tâche source
+        indices[source].auPlusTard = graphe->pSommet[source]->duree; // initialiser le temps de la tâche source (au plus tardd est le temps d'execution de la tâche)
 
-        // Appeler la fonction pour parcourir et mettre à jour les dates
+        // appeler la fonction pour parcourir et mettre à jour les dates
         parcourir_et_mettre_a_jour_dates(graphe, indices, source, &indices[source].auPlusTot, maxTachesSimultanees);
 
     }
 
-    // Afficher les indices PERT
+    // afficher les informations des sommets
     printf("taches simultanees :\n");
     for (int i = 0; i < graphe->ordre; i++) {
         printf("Tache %d : Au plus tot = %.2f, Au plus tard = %.2f\n", i, indices[i].auPlusTot, indices[i].auPlusTard);
         maxTempsCycle = fmax(maxTempsCycle, indices[i].auPlusTard);
     }
 
-    // Libérer la mémoire allouée
+    // libérer la mémoire
     free(sources);
     free(indices);
     return maxTempsCycle;
@@ -651,7 +608,7 @@ int main() {
     int seuilTempsCycle;
     printf("Entrer le nom du fichier du temps de cycle :");//C:\Users\bmart\CLionProjects\projet_th_graphe\temps_cycle.txt
     gets(nom_fichier_t_cycle);
-    // Déclarer la variable pour le seuil du temps de cycle
+
     seuilTempsCycle = lire_t_cycle(nom_fichier_t_cycle);
 
 
@@ -660,18 +617,16 @@ int main() {
 
     int maxSuccesseurs = 0;
 
-// Trouver le nombre maximal de successeurs d'un sommet
+// trouve le nombre maximal de successeurs d'un sommet partir de la fonction nombre_succeseur
     for (int i = 0; i < g->ordre; i++) {
-        int successeurs = nombre_max_successeurs(g, i);
+        int successeurs = nombre_successeurs(g, i);
         if (successeurs > maxSuccesseurs) {
             maxSuccesseurs = successeurs;
         }
     }
     int max_Sim;
     for (int maxTachesSimultanees = 0; maxTachesSimultanees <= maxSuccesseurs; maxTachesSimultanees++) {
-        // Votre code existant ici
 
-        // Calculer et afficher les indices PERT
         int TachesSimultanees = (maxSuccesseurs-maxTachesSimultanees);
         max_Sim =  (maxSuccesseurs-maxTachesSimultanees);
         printf("%d ",TachesSimultanees);
@@ -691,7 +646,7 @@ int main() {
     printf("%d", max_stations_color);
     printf("\n");
     printf("nombre de station avec les exclusions : ");
-    printf("%d", max_Sim-1);
+    printf("%d", max_Sim+1);
     printf("\n");
     printf("/********************************************************************************************************************/\n");
 
