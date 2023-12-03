@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <math.h>
 
-/* affichage des successeurs du sommet num*/
+
 void afficher_successeurs(pSommet * sommet, int num)
 {
 
@@ -85,9 +85,6 @@ Graphe * lire_graphe(char * nomFichier)
     {
         printf("Erreur de lecture fichier\n");
         exit(-1);
-
-
-
     }
 
     fscanf(ifs,"%d",&ordre);
@@ -253,23 +250,49 @@ int* trouver_source(Graphe* graphe, int* nbSources) {
     return sources;
 }
 
+int nombre_max_successeurs(Graphe* graphe, int sommet) {
+    pArc arc = graphe->pSommet[sommet]->arc;
+    int count = 0;
+    while (arc != NULL) {
+        count++;
+        arc = arc->arc_suivant;
+    }
+    return count;
+}
+
 typedef struct {
     float auPlusTot;
     float auPlusTard;
 } PertInfo;
 
-void parcourir_et_mettre_a_jour_dates(Graphe* graphe, PertInfo* indices, int sommet, float* derniereTache) {
+// Structure pour représenter une tâche
+typedef struct {
+    int sommet;
+    float debut; // Date de début de la tâche
+} Tache;
+
+// Fonction de comparaison pour la file de priorité (heap)
+int compareTaches(const void* a, const void* b) {
+    return ((Tache*)a)->debut - ((Tache*)b)->debut;
+}
+
+// Fonction pour parcourir et mettre à jour les dates des tâches
+void parcourir_et_mettre_a_jour_dates(Graphe* graphe, PertInfo* indices, int sommet, float* derniereTache, int maxTachesSimultanees) {
     pArc arc = graphe->pSommet[sommet]->arc;
+
+    // File de priorité pour les tâches simultanées
+    Tache* tachesSimultanees = (Tache*)malloc(maxTachesSimultanees * sizeof(Tache));
+    int nbTachesSimultanees = 0;
 
     // Variables pour stocker les tâches pouvant s'exécuter simultanément
     float debutPossible = indices[sommet].auPlusTard; // Début possible de la tâche actuelle
-    float finPossible = *derniereTache; // Fin possible de la tâche précédente
+    float finPossible = *derniereTache;               // Fin possible de la tâche précédente
 
     while (arc != NULL) {
         int successeur = arc->sommet;
         float dureeArc = graphe->pSommet[successeur]->duree;
 
-        // Vérifiez si la tâche successeur a des prédécesseurs autres que la tâche actuelle
+        // Vérifier si le successeur a des prédécesseurs autres que la tâche actuelle
         int aDesPredecesseursAutres = 0;
         pArc predArc = graphe->pSommet[successeur]->arc;
         while (predArc != NULL) {
@@ -280,41 +303,103 @@ void parcourir_et_mettre_a_jour_dates(Graphe* graphe, PertInfo* indices, int som
             predArc = predArc->arc_suivant;
         }
 
-        // Si la tâche successeur n'a pas d'autres prédécesseurs, elle peut commencer simultanément
+        // Si le successeur n'a pas d'autres prédécesseurs, il peut commencer simultanément
         if (!aDesPredecesseursAutres) {
             // Mettez à jour la date au plus tôt pour la tâche successeur
             indices[successeur].auPlusTot = fmax(indices[successeur].auPlusTot, finPossible);
 
             // Mettez à jour la date au plus tard pour la tâche successeur
-            indices[successeur].auPlusTard = indices[successeur].auPlusTot + dureeArc;
+            indices[successeur].auPlusTard = fmax(indices[successeur].auPlusTard, finPossible + dureeArc);
 
             // Mettez à jour la fin possible pour les tâches suivantes
-            finPossible = indices[successeur].auPlusTard;
+            finPossible = fmax(finPossible, indices[successeur].auPlusTard);
+
+            // Ajouter la tâche simultanée à la file de priorité
+            if (nbTachesSimultanees < maxTachesSimultanees) {
+                tachesSimultanees[nbTachesSimultanees].sommet = successeur;
+                tachesSimultanees[nbTachesSimultanees].debut = indices[successeur].auPlusTot;
+                nbTachesSimultanees++;
+            } else {
+                // Si la file de priorité est pleine, retirez la tâche avec la date de début la plus élevée
+                qsort(tachesSimultanees, maxTachesSimultanees, sizeof(Tache), compareTaches);
+                if (indices[successeur].auPlusTot < tachesSimultanees[maxTachesSimultanees - 1].debut) {
+                    tachesSimultanees[maxTachesSimultanees - 1].sommet = successeur;
+                    tachesSimultanees[maxTachesSimultanees - 1].debut = indices[successeur].auPlusTot;
+                }
+            }
+
+            // Calculer la durée totale de la tâche successeur en fonction des tâches simultanées
+            float dureeTotale = dureeArc;
+            for (int i = 0; i < nbTachesSimultanees; i++) {
+                float chevauchement = fmax(0.0, fmin(finPossible, tachesSimultanees[i].debut + graphe->pSommet[tachesSimultanees[i].sommet]->duree) - indices[successeur].auPlusTot);
+                dureeTotale = fmax(dureeTotale, dureeTotale + chevauchement);
+            }
+            // Mettez à jour la date au plus tard en fonction de la durée totale
+            indices[successeur].auPlusTard = indices[successeur].auPlusTot + dureeTotale;
 
             // Appel récursif pour parcourir les successeurs
-            parcourir_et_mettre_a_jour_dates(graphe, indices, successeur, derniereTache);
+            parcourir_et_mettre_a_jour_dates(graphe, indices, successeur, &debutPossible, maxTachesSimultanees);
         } else {
-            // Si la tâche successeur a d'autres prédécesseurs, elle doit attendre que la tâche actuelle soit terminée
+            // Si le successeur a d'autres prédécesseurs, il doit attendre que la tâche actuelle soit terminée
             indices[successeur].auPlusTot = fmax(indices[successeur].auPlusTot, indices[sommet].auPlusTard);
 
             // Mettez à jour la date au plus tard pour la tâche successeur
-            indices[successeur].auPlusTard = indices[successeur].auPlusTot + dureeArc;
+            indices[successeur].auPlusTard = fmax(indices[successeur].auPlusTard, indices[sommet].auPlusTard + dureeArc);
 
             // Mettez à jour la fin possible pour les tâches suivantes
-            finPossible = indices[successeur].auPlusTard;
+            finPossible = fmax(finPossible, indices[successeur].auPlusTard);
 
             // Appel récursif pour parcourir les successeurs
-            parcourir_et_mettre_a_jour_dates(graphe, indices, successeur, derniereTache);
+            parcourir_et_mettre_a_jour_dates(graphe, indices, successeur, &debutPossible, maxTachesSimultanees);
         }
+        if (nbTachesSimultanees < maxTachesSimultanees) {
+            tachesSimultanees[nbTachesSimultanees].sommet = successeur;
+            tachesSimultanees[nbTachesSimultanees].debut = indices[successeur].auPlusTot;
+            nbTachesSimultanees++;
+        } else {
+            // Si la file de priorité est pleine, retirez la tâche avec la date de début la plus élevée
+            qsort(tachesSimultanees, maxTachesSimultanees, sizeof(Tache), compareTaches);
+            if (indices[successeur].auPlusTot < tachesSimultanees[maxTachesSimultanees - 1].debut) {
+                tachesSimultanees[maxTachesSimultanees - 1].sommet = successeur;
+                tachesSimultanees[maxTachesSimultanees - 1].debut = indices[successeur].auPlusTot;
+            }
+        }
+
+        // Calculer la durée totale de la tâche successeur en fonction des tâches simultanées
+        float dureeTotale = dureeArc;
+
+
+        for (int i = 0; i < nbTachesSimultanees; i++) {
+            float debutTacheSimult = tachesSimultanees[i].debut;
+            float dureeTacheSimult = graphe->pSommet[tachesSimultanees[i].sommet]->duree;
+
+            // Calculer le chevauchement en prenant en compte la tâche simultanée actuelle
+            float chevauchement = fmax(0.0, fmin(finPossible, debutTacheSimult + dureeTacheSimult) - indices[successeur].auPlusTot);
+
+            // Ajouter la durée du chevauchement à la durée totale
+            dureeTotale += chevauchement;
+        }
+
+        // Mettre à jour la date au plus tard en fonction de la durée totale
+        indices[successeur].auPlusTard = indices[successeur].auPlusTot + dureeTotale;
+
+        // Appel récursif pour parcourir les successeurs
+
+        parcourir_et_mettre_a_jour_dates(graphe, indices, successeur, &debutPossible, maxTachesSimultanees);
 
         arc = arc->arc_suivant;
     }
 
-    // Mettez à jour la fin possible de la tâche actuelle pour les tâches suivantes
-    *derniereTache = fmax(debutPossible, finPossible);
+    // ...
+
+    // Libérer la mémoire allouée pour la file de priorité
+    free(tachesSimultanees);
+
+
+
 }
 
-void pert_calculer_et_afficher(Graphe* graphe) {
+void pert_calculer_et_afficher(Graphe* graphe, int maxTachesSimultanees) {
     int nbSources;
     int* sources = trouver_source(graphe, &nbSources);
 
@@ -332,13 +417,9 @@ void pert_calculer_et_afficher(Graphe* graphe) {
         int source = sources[i];
         indices[source].auPlusTot = 0.0;
         indices[source].auPlusTard = graphe->pSommet[source]->duree; // Initialiser au temps de la tâche source
-    }
 
-    // Calculer les dates au plus tard pour chaque tâche
-    for (int i = 0; i < nbSources; i++) {
-        int source = sources[i];
-        float derniereTache = 0.0; // Initialisez avec le début du projet
-        parcourir_et_mettre_a_jour_dates(graphe, indices, source, &derniereTache);
+        // Appeler la fonction pour parcourir et mettre à jour les dates
+        parcourir_et_mettre_a_jour_dates(graphe, indices, source, &indices[source].auPlusTot, maxTachesSimultanees);
     }
 
     // Afficher les indices PERT
@@ -352,14 +433,16 @@ void pert_calculer_et_afficher(Graphe* graphe) {
     free(indices);
 }
 
-int main()
-{
 
 
-    Graphe* g;
+
+int main() {
+
+
+    Graphe *g;
     char nom_fichier[50];
     char nom_fichier_durees[50];
-
+    int maxTachesSimultanees;
     printf("Entrer le nom du fichier du labyrinthe:");//C:\Users\bmart\CLionProjects\projet_th_graphe\precedences.txt
     gets(nom_fichier);
 
@@ -372,10 +455,28 @@ int main()
 
     graphe_afficher(g);
 
+    int maxSuccesseurs = 0;
+
+// Trouver le nombre maximal de successeurs d'un sommet
+    for (int i = 0; i < g->ordre; i++) {
+        int successeurs = nombre_max_successeurs(g, i);
+        if (successeurs > maxSuccesseurs) {
+            maxSuccesseurs = successeurs;
+        }
+    }
+
+    for (int maxTachesSimultanees = 0; maxTachesSimultanees <= maxSuccesseurs; maxTachesSimultanees++) {
+        // Votre code existant ici
+
+        // Calculer et afficher les indices PERT
+        int TachesSimultanees = (maxSuccesseurs-maxTachesSimultanees);
+        printf("%d",TachesSimultanees);
+        pert_calculer_et_afficher(g, maxTachesSimultanees);
+
+        // Réinitialiser le graphe pour les itérations suivantes si nécessaire
+    }
     // Calculer et afficher les indices PERT
-    pert_calculer_et_afficher(g);
+
 
     return 0;
-
-
 }
